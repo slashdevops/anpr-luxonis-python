@@ -1,0 +1,17 @@
+[MAIN]
+extension-pkg-whitelist=
+  cv2.*,
+  dai.*,
+
+[TYPECHECK]
+generated-members=
+  cv2.*,
+  dai.*,
+
+[FORMAT]
+max-line-length=240
+
+[MASTER]
+disable=
+    C0114, # missing-module-docstring
+    C0116, #missing-function-docstring
