@@ -98,7 +98,7 @@ def create_pipeline():
         veh_xin.out.link(veh_nn.input)
 
     rec_nn = pipeline.create(dai.node.NeuralNetwork)
-    rec_nn.setBlobPath(blobconverter.from_zoo(name="license-plate-recognition-barrier-0007", shaves=SHAVES))
+    rec_nn.setBlobPath(blobconverter.from_zoo(name="text-recognition-0012", shaves=SHAVES))
     rec_nn.input.setBlocking(False)
     rec_nn.input.setQueueSize(1)
     rec_xout = pipeline.create(dai.node.XLinkOut)
@@ -169,9 +169,9 @@ def lic_thread(det_queue: dai.Node, rec_queue: dai.Node) -> None:
                 img = dai.ImgFrame()
                 img.setTimestamp(tstamp)
                 img.setType(dai.RawImgFrame.Type.BGR888p)
-                img.setData(to_planar(cropped_frame, (94, 24)))
-                img.setWidth(94)
-                img.setHeight(24)
+                img.setData(to_planar(cropped_frame, (120, 32)))
+                img.setWidth(120)
+                img.setHeight(32)
                 rec_queue.send(img)
 
             fps.tick("lic")

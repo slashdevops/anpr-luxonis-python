@@ -37,3 +37,10 @@ install the dependencies
 ```bash
 pip install -r requirements.txt
 ```
+
+## Pretrained models
+
+Luxonis zoo
+
++ [luxonis / blobconverter -> 2022_1](https://github.com/luxonis/blobconverter/tree/master/models/2022_1)
++ [Overview of OpenVINO™ Toolkit Intel’s Pre-Trained Models](https://docs.openvino.ai/latest/omz_models_group_intel.html)
