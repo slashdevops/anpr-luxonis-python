@@ -21,6 +21,9 @@ if not args.camera and not args.video:
 
 SHAVES = 6 if args.camera else 8
 
+# this is the label number of the label on the model trained that represent the license_plate
+LICENSE_PLATE_MODEL_LABEL_NUMBER = 1
+
 
 def frame_norm(frame, bbox):
     return (np.clip(np.array(bbox), 0, 1) * np.array([*frame.shape[:2], *frame.shape[:2]])[::-1]).astype(int)
@@ -28,6 +31,28 @@ def frame_norm(frame, bbox):
 
 def to_planar(arr: np.ndarray, shape: tuple) -> list:
     return cv2.resize(arr, shape).transpose(2, 0, 1).flatten()
+
+
+def set_neural_network(
+    stream_name: str,
+    pipeline: dai.Pipeline,
+    threshold: float,
+    trained_model_path: str,
+    queue_size: int = 1,
+    block_queue: bool = False,
+    network_type: dai.Node = dai.node.MobileNetDetectionNetwork,
+    dai_node: dai.Node = dai.node.XLinkOut,
+) -> dai.Node:
+    neural_network = pipeline.create(network_type)
+    neural_network.setConfidenceThreshold(threshold)
+    neural_network.setBlobPath(trained_model_path)
+    neural_network.input.setQueueSize(queue_size)
+    neural_network.input.setBlocking(block_queue)
+    neural_network_xout = pipeline.create(dai_node)
+    neural_network_xout.setStreamName(stream_name)
+    neural_network.out.link(neural_network_xout.input)
+
+    return neural_network
 
 
 def create_pipeline():
@@ -47,37 +72,23 @@ def create_pipeline():
 
     # NeuralNetwork
     print("Creating License Plates Detection Neural Network...")
-    det_nn = pipeline.create(dai.node.MobileNetDetectionNetwork)
-    det_nn.setConfidenceThreshold(0.5)
-    # det_nn.setBlobPath(blobconverter.from_zoo(name="vehicle-license-plate-detection-barrier-0106", shaves=SHAVES))
-    det_nn.setBlobPath(args.nn_blob_model.name)
-    det_nn.input.setQueueSize(1)
-    det_nn.input.setBlocking(False)
-    det_nn_xout = pipeline.create(dai.node.XLinkOut)
-    det_nn_xout.setStreamName("det_nn")
-    det_nn.out.link(det_nn_xout.input)
+    lp_nn = set_neural_network("lp_nn", pipeline, 0.6, args.nn_blob_model.name)
 
     if args.camera:
         manip = pipeline.create(dai.node.ImageManip)
         manip.initialConfig.setResize(300, 300)
         manip.initialConfig.setFrameType(dai.RawImgFrame.Type.BGR888p)
         cam.preview.link(manip.inputImage)
-        manip.out.link(det_nn.input)
+        manip.out.link(lp_nn.input)
     else:
         det_xin = pipeline.create(dai.node.XLinkIn)
-        det_xin.setStreamName("det_in")
-        det_xin.out.link(det_nn.input)
+        det_xin.setStreamName("lp_in")
+        det_xin.out.link(lp_nn.input)
 
     # NeuralNetwork
     print("Creating Vehicle Detection Neural Network...")
-    veh_nn = pipeline.create(dai.node.MobileNetDetectionNetwork)
-    veh_nn.setConfidenceThreshold(0.5)
-    veh_nn.setBlobPath(blobconverter.from_zoo(name="vehicle-detection-adas-0002", shaves=SHAVES))
-    veh_nn.input.setQueueSize(1)
-    veh_nn.input.setBlocking(False)
-    veh_nn_xout = pipeline.create(dai.node.XLinkOut)
-    veh_nn_xout.setStreamName("veh_nn")
-    veh_nn.out.link(veh_nn_xout.input)
+    veh_nn_path = blobconverter.from_zoo(name="vehicle-detection-adas-0002", shaves=SHAVES)
+    veh_nn = set_neural_network("veh_nn", pipeline, 0.7, veh_nn_path)
 
     if args.camera:
         cam.preview.link(veh_nn.input)
@@ -136,7 +147,7 @@ else:
     fps = FPSHandler(cap)
 
 
-def lic_thread(det_queue, rec_queue):
+def lic_thread(det_queue: dai.Node, rec_queue: dai.Node) -> None:
     global license_detections, lic_last_seq
 
     while RUNNING:
@@ -148,10 +159,10 @@ def lic_thread(det_queue, rec_queue):
             if orig_frame is None:
                 continue
 
-            license_detections = [detection for detection in dets if detection.label == 2]
+            license_detections = [detection for detection in dets if detection.label == LICENSE_PLATE_MODEL_LABEL_NUMBER]
 
-            for detection in license_detections:
-                bbox = frame_norm(orig_frame, (detection.xmin, detection.ymin, detection.xmax, detection.ymax))
+            for lic_det in license_detections:
+                bbox = frame_norm(orig_frame, (lic_det.xmin, lic_det.ymin, lic_det.xmax, lic_det.ymax))
                 cropped_frame = orig_frame[bbox[1] : bbox[3], bbox[0] : bbox[2]]
 
                 tstamp = time.monotonic()
@@ -253,18 +264,19 @@ with dai.Device(create_pipeline()) as device:
     if args.camera:
         cam_out = device.getOutputQueue("cam_out", 1, True)
     else:
-        det_in = device.getInputQueue("det_in")
+        lp_in = device.getInputQueue("lp_in")
         veh_in = device.getInputQueue("veh_in")
+
     rec_in = device.getInputQueue("rec_in")
     attr_in = device.getInputQueue("attr_in")
-    det_nn = device.getOutputQueue("det_nn", 1, False)
+    lp_nn = device.getOutputQueue("lp_nn", 1, False)
     veh_nn = device.getOutputQueue("veh_nn", 1, False)
     rec_nn = device.getOutputQueue("rec_nn", 1, False)
     rec_pass = device.getOutputQueue("rec_pass", 1, False)
     attr_nn = device.getOutputQueue("attr_nn", 1, False)
     attr_pass = device.getOutputQueue("attr_pass", 1, False)
 
-    det_t = threading.Thread(target=lic_thread, args=(det_nn, rec_in))
+    det_t = threading.Thread(target=lic_thread, args=(lp_nn, rec_in))
     det_t.start()
     veh_t = threading.Thread(target=veh_thread, args=(veh_nn, attr_in))
     veh_t.start()
@@ -313,7 +325,7 @@ with dai.Device(create_pipeline()) as device:
                 lic_frame.setType(dai.RawImgFrame.Type.BGR888p)
                 lic_frame.setWidth(300)
                 lic_frame.setHeight(300)
-                det_in.send(lic_frame)
+                lp_in.send(lic_frame)
                 veh_frame = dai.ImgFrame()
                 veh_frame.setData(to_planar(frame, (300, 300)))
                 veh_frame.setTimestamp(tstamp)
@@ -328,14 +340,19 @@ with dai.Device(create_pipeline()) as device:
 
             if args.debug:
                 debug_frame = frame.copy()
-                for detection in license_detections + vehicle_detections:
+                for detection in license_detections:
+                    bbox = frame_norm(debug_frame, (detection.xmin, detection.ymin, detection.xmax, detection.ymax))
+                    cv2.rectangle(debug_frame, (bbox[0], bbox[1]), (bbox[2], bbox[3]), (0, 255, 9), 2)
+
+                for detection in vehicle_detections:
                     bbox = frame_norm(debug_frame, (detection.xmin, detection.ymin, detection.xmax, detection.ymax))
                     cv2.rectangle(debug_frame, (bbox[0], bbox[1]), (bbox[2], bbox[3]), (255, 0, 0), 2)
-                cv2.putText(debug_frame, f"RGB FPS: {round(fps.fps(), 1)}", (5, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0))
+
+                cv2.putText(debug_frame, f"RGB FPS: {round(fps.fps(), 1)}", (5, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255))
                 cv2.putText(debug_frame, f"LIC FPS:  {round(fps.tickFps('lic'), 1)}", (5, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0))
-                cv2.putText(debug_frame, f"VEH FPS:  {round(fps.tickFps('veh'), 1)}", (5, 45), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0))
+                cv2.putText(debug_frame, f"VEH FPS:  {round(fps.tickFps('veh'), 1)}", (5, 45), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0))
                 cv2.putText(debug_frame, f"REC FPS:  {round(fps.tickFps('rec'), 1)}", (5, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0))
-                cv2.putText(debug_frame, f"ATTR FPS:  {round(fps.tickFps('attr'), 1)}", (5, 75), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0))
+                cv2.putText(debug_frame, f"ATTR FPS:  {round(fps.tickFps('attr'), 1)}", (5, 75), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 50, 150))
                 cv2.imshow("rgb", debug_frame)
 
                 rec_stacked = None
