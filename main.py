@@ -10,7 +10,7 @@ import numpy as np
 from depthai_sdk import FPSHandler
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-d", "--debug", action="store_true", help="Debug mode")
+parser.add_argument("-d", "--debug", action="store_true", default=True, help="Debug mode")
 parser.add_argument("-cam", "--camera", action="store_true", help="Use DepthAI 4K RGB camera for inference (conflicts with -vid)")
 parser.add_argument("-vid", "--video", type=str, help="Path to video file to be used for inference (conflicts with -cam)")
 parser.add_argument("-nn", "--nn-blob-model", type=argparse.FileType("r", encoding="UTF-8"), required=True, help="Set path of the blob (NN model)")
