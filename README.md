@@ -46,8 +46,16 @@ pip install -r requirements.txt
 
 ## Run
 
+All detections
+
 ```bash
-python3 main.py -nn ~/Downloads/frozen_inference_graph_openvino_2021.4_6shave.blob -vid ~/Videos/1.mp4
+anpr-luxonis-python git:(main) python3 main.py -nn ~/ai/custom_models/frozen_inference_graph_openvino_2021.4_6shave.blob -vid ~/Videos/1.mp4
+```
+
+License plate detections
+
+```bash
+anpr-luxonis-python git:(main) python3 main.py -nn ~/ai/custom_models/frozen_inference_graph_openvino_2021.4_6shave.blob -vid ~/Videos/1.mp4
 ```
 
 ## Pretrained models
