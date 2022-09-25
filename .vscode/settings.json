@@ -4,6 +4,7 @@
     "blobconverter",
     "depthai",
     "manip",
+    "mobilenet",
     "ndarray",
     "xout"
   ]

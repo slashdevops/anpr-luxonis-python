@@ -6,3 +6,4 @@ depthai-sdk==1.2.3
 # developer tools
 black
 pylint
+autoimport
