@@ -3,6 +3,7 @@
     "astype",
     "blobconverter",
     "depthai",
+    "imshow",
     "manip",
     "mobilenet",
     "ndarray",

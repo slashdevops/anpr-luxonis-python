@@ -7,3 +7,5 @@ depthai-sdk==1.2.3
 black
 pylint
 autoimport
+PySide2
+pip install git+https://github.com/geaxgx/depthai_pipeline_graph.git
