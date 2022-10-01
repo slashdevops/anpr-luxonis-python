@@ -151,7 +151,7 @@ lic_last_seq = 0
 if args.camera:
     fps = FPSHandler()
 else:
-    cap = cv2.VideoCapture(str(Path(args.video).resolve().absolute()))
+    cap = cv2.VideoCapture(str(Path(args.video.name).resolve().absolute()))
     fps = FPSHandler(cap)
 
 
