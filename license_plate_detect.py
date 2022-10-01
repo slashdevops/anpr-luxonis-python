@@ -100,7 +100,7 @@ def should_run() -> bool:
     return cap.isOpened() if args.video else True
 
 
-def to_planar(arr: np.ndarray, shape: tuple) -> list:
+def to_planar(arr: np.ndarray, shape: tuple) -> np.ndarray:
     return cv2.resize(arr, shape).transpose(2, 0, 1).flatten()
 
 
