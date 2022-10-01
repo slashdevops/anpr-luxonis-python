@@ -66,6 +66,7 @@ def create_pipeline():
         cam.setResolution(dai.ColorCameraProperties.SensorResolution.THE_1080_P)
         cam.setInterleaved(False)
         cam.setBoardSocket(dai.CameraBoardSocket.RGB)
+
         cam_xout = pipeline.create(dai.node.XLinkOut)
         cam_xout.setStreamName("cam_out")
         cam.preview.link(cam_xout.input)
@@ -101,12 +102,15 @@ def create_pipeline():
     rec_nn.setBlobPath(blobconverter.from_zoo(name="text-recognition-0012", shaves=SHAVES))
     rec_nn.input.setBlocking(False)
     rec_nn.input.setQueueSize(1)
+
     rec_xout = pipeline.create(dai.node.XLinkOut)
     rec_xout.setStreamName("rec_nn")
     rec_nn.out.link(rec_xout.input)
+
     rec_pass = pipeline.create(dai.node.XLinkOut)
     rec_pass.setStreamName("rec_pass")
     rec_nn.passthrough.link(rec_pass.input)
+
     rec_xin = pipeline.create(dai.node.XLinkIn)
     rec_xin.setStreamName("rec_in")
     rec_xin.out.link(rec_nn.input)
@@ -115,12 +119,16 @@ def create_pipeline():
     attr_nn.setBlobPath(blobconverter.from_zoo(name="vehicle-attributes-recognition-barrier-0039", shaves=SHAVES))
     attr_nn.input.setBlocking(False)
     attr_nn.input.setQueueSize(1)
+
     attr_xout = pipeline.create(dai.node.XLinkOut)
     attr_xout.setStreamName("attr_nn")
     attr_nn.out.link(attr_xout.input)
+
     attr_pass = pipeline.create(dai.node.XLinkOut)
     attr_pass.setStreamName("attr_pass")
+
     attr_nn.passthrough.link(attr_pass.input)
+
     attr_xin = pipeline.create(dai.node.XLinkIn)
     attr_xin.setStreamName("attr_in")
     attr_xin.out.link(attr_nn.input)
@@ -143,7 +151,7 @@ lic_last_seq = 0
 if args.camera:
     fps = FPSHandler()
 else:
-    cap = cv2.VideoCapture(str(Path(args.video.name).resolve().absolute()))
+    cap = cv2.VideoCapture(str(Path(args.video).resolve().absolute()))
     fps = FPSHandler(cap)
 
 
@@ -318,6 +326,7 @@ with dai.Device(create_pipeline()) as device:
 
             if not args.camera:
                 tstamp = time.monotonic()
+
                 lic_frame = dai.ImgFrame()
                 lic_frame.setData(to_planar(frame, (300, 300)))
                 lic_frame.setTimestamp(tstamp)
@@ -326,6 +335,7 @@ with dai.Device(create_pipeline()) as device:
                 lic_frame.setWidth(300)
                 lic_frame.setHeight(300)
                 lp_in.send(lic_frame)
+
                 veh_frame = dai.ImgFrame()
                 veh_frame.setData(to_planar(frame, (300, 300)))
                 veh_frame.setTimestamp(tstamp)
