@@ -81,7 +81,7 @@ else:
     fps = FPSHandler(cap)
 
 
-def frame_norm(frame, bbox):
+def frame_norm(frame: object, bbox: tuple) -> np.ndarray:
     norm_vals = np.full(len(bbox), frame.shape[0])
     norm_vals[::2] = frame.shape[1]
     return (np.clip(np.array(bbox), 0, 1) * norm_vals).astype(int)
