@@ -68,19 +68,17 @@ veh_manip.initialConfig.setResize(VEH_NN_INPUT_IMG_WIDTH, VEH_NN_INPUT_IMG_HEIGH
 veh_manip.initialConfig.setFrameType(dai.RawImgFrame.Type.BGR888p)
 veh_manip.out.link(veh_nn.input)
 
-# use if we want to run the license plate NN in parallel with the veh NN
-# lic_manip = pipeline.create(dai.node.ImageManip)
-# lic_manip.initialConfig.setResize(LP_NN_INPUT_IMG_WIDTH, LP_NN_INPUT_IMG_HEIGHT)
-# lic_manip.initialConfig.setFrameType(dai.RawImgFrame.Type.BGR888p)
-# lic_manip.out.link(lp_nn.input)
+# ImageManip will resize the frame coming from queue after we
+# cropped the original cam/vid frame with the box of the car detection and
+# use it before sending it to the license plate detection NN node
+lic_manip = pipeline.create(dai.node.ImageManip)
+lic_manip.initialConfig.setResize(LP_NN_INPUT_IMG_WIDTH, LP_NN_INPUT_IMG_HEIGHT)
+lic_manip.initialConfig.setFrameType(dai.RawImgFrame.Type.BGR888p)
+lic_manip.out.link(lp_nn.input)
 
-# any frame sent to in_veh queue will have the dimensions and characteristics
-# required by the license plate NN
-# in_veh.out.link(lic_manip.input) # this is in case we will pre-process the image before
 in_veh = pipeline.create(dai.node.XLinkIn)
 in_veh.setStreamName("in_veh")
-in_veh.out.link(lp_nn.input)
-
+in_veh.out.link(lic_manip.inputImage)  # this is in case we will pre-process the image before
 
 # Send cam/vid to the host
 xout_rgb = pipeline.create(dai.node.XLinkOut)
