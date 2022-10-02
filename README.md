@@ -58,6 +58,12 @@ License plate detections
 anpr-luxonis-python git:(main) python3 main.py -nn ~/ai/custom_models/frozen_inference_graph_openvino_2021.4_6shave.blob -vid ~/Videos/1.mp4
 ```
 
+Car detections
+
+```bash
+python3 car_detect.py -vid ~/Videos/1.mp4
+```
+
 ## Pretrained models
 
 Luxonis zoo

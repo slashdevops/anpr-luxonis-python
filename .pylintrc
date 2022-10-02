@@ -2,13 +2,15 @@
 extension-pkg-whitelist=
   cv2.*,
   dai.*,
-  depthai.*
+  depthai.*,
+  utils.*,
 
 [TYPECHECK]
 generated-members=
   cv2.*,
   dai.*,
-  depthai.*
+  depthai.*,
+  utils.*,
 
 [FORMAT]
 max-line-length=240
@@ -17,4 +19,6 @@ max-line-length=240
 disable=
     C0114, # missing-module-docstring
     C0116, # missing-function-docstring
-    I1101 # extension-pkg-allow-list
+    I1101, # extension-pkg-allow-list
+    W0621, # redefined-outer-name
+    E0611, # no-name-in-module
