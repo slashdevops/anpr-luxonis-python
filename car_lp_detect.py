@@ -144,12 +144,12 @@ with dai.Device(pipeline) as device:
     q_rgb = device.getOutputQueue("rgb", 1, True)  # to get the frame processed
 
     q_veh = device.getInputQueue("in_veh")  # to send the frames cropped with vehicle detection box
-    q_vid = device.getInputQueue("vid")  # to send the frames coming from video file
 
     veh_detections = []
     lp_detections = []
 
     if not args.camera:
+        q_vid = device.getInputQueue("vid")  # to send the frames coming from video file
         # size of frames coming from video file
         video_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         video_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
