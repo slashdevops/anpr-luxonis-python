@@ -4,6 +4,7 @@ import argparse
 import time
 from pathlib import Path
 
+import blobconverter
 import cv2
 import depthai as dai
 import numpy as np
@@ -20,8 +21,8 @@ args = parser.parse_args()
 if not args.camera and not args.video:
     raise RuntimeError('No source selected. Use either "-cam" to run on RGB camera as a source or "-vid <path>" to run on video')
 
-NN_INPUT_IMG_WIDTH = 300
-NN_INPUT_IMG_HEIGHT = 300
+NN_INPUT_IMG_WIDTH = 256
+NN_INPUT_IMG_HEIGHT = 256
 
 SHAVES = 6 if args.camera else 8
 
@@ -29,7 +30,7 @@ pipeline = dai.Pipeline()
 
 if args.camera:
     cam = pipeline.create(dai.node.ColorCamera)
-    cam.setPreviewSize(800, 600)
+    cam.setPreviewSize(1024, 768)
     cam.setResolution(dai.ColorCameraProperties.SensorResolution.THE_1080_P)
     cam.setInterleaved(False)
     cam.setBoardSocket(dai.CameraBoardSocket.RGB)
@@ -40,24 +41,24 @@ else:
     cap = cv2.VideoCapture(str(Path(args.video.name).resolve().absolute()))
 
 # NN
-lp_nn = pipeline.createMobileNetDetectionNetwork()
-lp_nn.setBlobPath(args.nn_blob_model.name)
-lp_nn.setConfidenceThreshold(args.nn_threshold)
-lp_nn.setNumInferenceThreads(2)
-lp_nn.input.setQueueSize(1)
+veh_nn = pipeline.createMobileNetDetectionNetwork()
+veh_nn.setBlobPath(blobconverter.from_zoo(name="vehicle-detection-0200", shaves=SHAVES))
+veh_nn.setConfidenceThreshold(args.nn_threshold)
+veh_nn.setNumInferenceThreads(2)
+veh_nn.input.setQueueSize(1)
 
 # ImageManip will resize the frame coming from the camera
 # before sending it to the license plate detection NN node
-lp_manip = pipeline.create(dai.node.ImageManip)
-lp_manip.initialConfig.setResize(NN_INPUT_IMG_WIDTH, NN_INPUT_IMG_HEIGHT)
-lp_manip.initialConfig.setFrameType(dai.RawImgFrame.Type.BGR888p)
-lp_manip.out.link(lp_nn.input)
+veh_manip = pipeline.create(dai.node.ImageManip)
+veh_manip.initialConfig.setResize(NN_INPUT_IMG_WIDTH, NN_INPUT_IMG_HEIGHT)
+veh_manip.initialConfig.setFrameType(dai.RawImgFrame.Type.BGR888p)
+veh_manip.out.link(veh_nn.input)
 
 # send the source in frames to the image manipulation
 if args.camera:
-    cam.preview.link(lp_manip.inputImage)  # send camera frames to imageManip node
+    cam.preview.link(veh_manip.inputImage)  # send camera frames to imageManip node
 else:
-    vid.out.link(lp_nn.input)
+    vid.out.link(veh_nn.input)
 
 
 # Send video or cam to the host
@@ -69,7 +70,7 @@ xout_nn = pipeline.create(dai.node.XLinkOut)
 xout_nn.setStreamName("detection")
 
 # connect detections to xout
-lp_nn.out.link(xout_nn.input)
+veh_nn.out.link(xout_nn.input)
 
 # connect cam/vid to xout
 if args.camera:
@@ -132,7 +133,7 @@ with dai.Device(pipeline) as device:
 
         # send the video frames to cam processor
         if not args.camera:
-            q_vid = device.getInputQueue("vid", 1, False)
+            q_vid = device.getInputQueue("vid", 1, True)
             img_frame = to_depthai_frame(frame, (NN_INPUT_IMG_WIDTH, NN_INPUT_IMG_HEIGHT))
             q_vid.send(img_frame)
 
