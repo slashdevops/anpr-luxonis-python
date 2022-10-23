@@ -5,6 +5,10 @@ import depthai as dai
 import numpy as np
 
 
+def unix_time() -> int:
+    return int(time.time() * 1000.0 * -1)
+
+
 def frame_norm(frame: object, bbox: tuple) -> np.ndarray:
     """
     This create a norm
@@ -93,5 +97,7 @@ def send_frame_to_queue(video_capture: np.ndarray, send_queue: dai.DataInputQueu
     """
     success, frame = video_capture.read()
     if success:
+        sequence = unix_time()
         img_frame = to_depthai_frame(frame, size)
+        img_frame.setSequenceNum(sequence)
         send_queue.send(img_frame)

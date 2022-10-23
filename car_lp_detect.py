@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import threading
 from pathlib import Path
 
 import blobconverter
@@ -8,7 +9,7 @@ import cv2
 import depthai as dai
 from depthai_sdk import FPSHandler
 
-from utils import frame_norm, send_frame_to_queue
+from utils import frame_norm, send_frame_to_queue, to_depthai_frame
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-d", "--debug", default=True, help="Debug mode")
@@ -120,20 +121,27 @@ def should_run() -> bool:
     return cap.isOpened() if args.video else True
 
 
-# def veh_thread(detect_queue: dai.DataOutputQueue, send_queue: dai.DataInputQueue) -> None:
+def veh_thread(detect_queue: dai.DataOutputQueue, out_queue: dai.DataInputQueue, frame_queue: list) -> None:
 
-#     while RUNNING:
-#         try:
-#             detections = []
-#             in_queue = detect_queue.get()
-#             if in_queue is not None:
-#                 detections = in_queue.detections
+    while RUNNING:
+        try:
+            if len(frame_queue) == 0:
+                continue
 
-#             for det in detections:
-#                 bbox = frame_norm(orig_frame, (detection.xmin, detection.ymin, detection.xmax, detection.ymax))
+            frame = frame_queue.pop()
+            detections = []
+            det_obj = detect_queue.get()
+            if det_obj is not None:
+                detections = det_obj.detections
 
-#         except RuntimeError:
-#             continue
+            for det in detections:
+                bbox = frame_norm(frame, (det.xmin, det.ymin, det.xmax, det.ymax))
+                cropped = frame[bbox[1] : bbox[3], bbox[0] : bbox[2]]
+                img = to_depthai_frame(cropped, (LP_NN_INPUT_IMG_WIDTH, LP_NN_INPUT_IMG_HEIGHT))
+                out_queue.send(img)
+
+        except RuntimeError:
+            continue
 
 
 with dai.Device(pipeline) as device:
@@ -147,6 +155,10 @@ with dai.Device(pipeline) as device:
 
     veh_detections = []
     lp_detections = []
+    frame_queue = []  # store the frame sequence and data
+
+    veh_t = threading.Thread(target=veh_thread, args=(veh_det, q_veh, frame_queue))
+    veh_t.start()
 
     if not args.camera:
         q_vid = device.getInputQueue("vid")  # to send the frames coming from video file
@@ -158,8 +170,11 @@ with dai.Device(pipeline) as device:
         if not args.camera:
             send_frame_to_queue(cap, q_vid, (video_width, video_height))
 
-        frame = q_rgb.get().getCvFrame()
-        # sequence = q_rgb.getSequenceNum()
+        q_rgb_data = q_rgb.get()
+        frame = q_rgb_data.getCvFrame()
+        frame_sec = q_rgb_data.getSequenceNum()
+
+        frame_queue.append(frame)
 
         veh_det_data = veh_det.tryGet()
         if veh_det_data is not None:
@@ -171,14 +186,17 @@ with dai.Device(pipeline) as device:
                 bbox = frame_norm(frame, (veh.xmin, veh.ymin, veh.xmax, veh.ymax))
                 cv2.rectangle(frame, (bbox[0], bbox[1]), (bbox[2], bbox[3]), (0, 255, 0), 2)
 
-            cv2.putText(frame, "Fps: {:.2f}".format(fps.fps()), (2, frame.shape[0] - 4), cv2.FONT_HERSHEY_TRIPLEX, 0.8, color=(0, 255, 0))
+            cv2.putText(frame, f"Fps: {fps.fps():.2f}", (2, frame.shape[0] - 4), cv2.FONT_HERSHEY_TRIPLEX, 0.8, color=(0, 255, 0))
             cv2.imshow("preview", frame)
 
         if cv2.waitKey(1) == ord("q"):
             break
 
-    RUNNING = False
+    RUNNING = False  # stop threads
+    veh_t.join()
 
-print("FPS: {:.2f}".format(fps.fps()))
+print(f"FPS: {fps.fps():.2f}")
+print(len(frame))
+
 if not args.camera:
     cap.release()

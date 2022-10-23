@@ -146,7 +146,7 @@ with dai.Device(pipeline) as device:
                 bbox = frame_norm(frame, (detection.xmin, detection.ymin, detection.xmax, detection.ymax))
                 cv2.rectangle(frame, (bbox[0], bbox[1]), (bbox[2], bbox[3]), (0, 255, 0), 2)
 
-            cv2.putText(frame, "Fps: {:.2f}".format(fps.fps()), (2, frame.shape[0] - 4), cv2.FONT_HERSHEY_TRIPLEX, 0.8, color=(0, 255, 0))
+            cv2.putText(frame, f"Fps: {fps.fps():.2f}", (2, frame.shape[0] - 4), cv2.FONT_HERSHEY_TRIPLEX, 0.8, color=(0, 255, 0))
             cv2.imshow("preview", frame)
 
         if cv2.waitKey(1) == ord("q"):

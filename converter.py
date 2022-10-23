@@ -1,5 +1,4 @@
 import argparse
-from functools import cache
 
 import blobconverter
 
