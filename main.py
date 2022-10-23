@@ -412,6 +412,6 @@ with dai.Device(create_pipeline()) as device:
     attr_t.join()
     veh_t.join()
 
-print("FPS: {:.2f}".format(fps.fps()))
+print(f"FPS: {fps.fps():.2f}")
 if not args.camera:
     cap.release()
