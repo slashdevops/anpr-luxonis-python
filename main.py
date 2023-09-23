@@ -9,11 +9,15 @@ import depthai as dai
 import numpy as np
 from depthai_sdk.fps import FPSHandler
 
+MODELS_DIR = Path(__file__).parent.joinpath("models/DepthAI")
+
+DEFAULT_MODEL_LP_VENEZUELA = MODELS_DIR.joinpath("2022-09-17/frozen_inference_graph_openvino_2021.4_6shave.blob")
+
 parser = argparse.ArgumentParser()
 parser.add_argument("-d", "--debug", default=True, help="Debug mode")
 parser.add_argument("-cam", "--camera", action="store_true", help="Use DepthAI 4K RGB camera for inference (conflicts with -vid)")
 parser.add_argument("-vid", "--video", type=argparse.FileType("r", encoding="UTF-8"), help="Path to video file to be used for inference (conflicts with -cam)")
-# parser.add_argument("-nn", "--nn-blob-model", type=argparse.FileType("r", encoding="UTF-8"), required=True, help="Set path of the blob (NN model)")
+parser.add_argument("-nn", "--nn-blob-model", type=argparse.FileType("r", encoding="UTF-8"), default=DEFAULT_MODEL_LP_VENEZUELA, help="Set path of the blob (NN model)")
 args = parser.parse_args()
 
 if not args.camera and not args.video:
@@ -23,6 +27,7 @@ SHAVES = 6 if args.camera else 8
 
 # this is the label number of the label on the model trained that represent the license_plate
 LICENSE_PLATE_MODEL_LABEL_NUMBER = 1
+LP_NN_IMG_SIZE = (672, 384)
 
 
 def frame_norm(frame, bbox):
@@ -62,10 +67,10 @@ def create_pipeline():
     if args.camera:
         print("Creating Color Camera...")
         cam = pipeline.create(dai.node.ColorCamera)
-        cam.setPreviewSize(672, 384)
+        cam.setPreviewSize(640, 640)
         cam.setResolution(dai.ColorCameraProperties.SensorResolution.THE_1080_P)
         cam.setInterleaved(False)
-        cam.setBoardSocket(dai.CameraBoardSocket.RGB)
+        cam.setBoardSocket(dai.CameraBoardSocket.CAM_A)
 
         cam_xout = pipeline.create(dai.node.XLinkOut)
         cam_xout.setStreamName("cam_out")
@@ -73,11 +78,11 @@ def create_pipeline():
 
     # NeuralNetwork
     print("Creating License Plates Detection Neural Network...")
-    lp_nn = set_neural_network("lp_nn", pipeline, 0.6, args.nn_blob_model.name)
+    lp_nn = set_neural_network("lp_nn", pipeline, 0.6, args.nn_blob_model)
 
     if args.camera:
         manip = pipeline.create(dai.node.ImageManip)
-        manip.initialConfig.setResize(300, 300)
+        manip.initialConfig.setResize(LP_NN_IMG_SIZE)
         manip.initialConfig.setFrameType(dai.RawImgFrame.Type.BGR888p)
         cam.preview.link(manip.inputImage)
         manip.out.link(lp_nn.input)
@@ -88,7 +93,7 @@ def create_pipeline():
 
     # NeuralNetwork
     print("Creating Vehicle Detection Neural Network...")
-    veh_nn_path = blobconverter.from_zoo(name="vehicle-detection-adas-0002", shaves=SHAVES)
+    veh_nn_path = blobconverter.from_zoo(name="vehicle-detection-adas-0002", shaves=SHAVES, output_dir=MODELS_DIR)
     veh_nn = set_neural_network("veh_nn", pipeline, 0.7, veh_nn_path)
 
     if args.camera:
@@ -99,7 +104,7 @@ def create_pipeline():
         veh_xin.out.link(veh_nn.input)
 
     rec_nn = pipeline.create(dai.node.NeuralNetwork)
-    rec_nn.setBlobPath(blobconverter.from_zoo(name="text-recognition-0012", shaves=SHAVES))
+    rec_nn.setBlobPath(blobconverter.from_zoo(name="text-recognition-0012", shaves=SHAVES, output_dir=MODELS_DIR))
     rec_nn.input.setBlocking(False)
     rec_nn.input.setQueueSize(1)
 
@@ -116,7 +121,7 @@ def create_pipeline():
     rec_xin.out.link(rec_nn.input)
 
     attr_nn = pipeline.create(dai.node.NeuralNetwork)
-    attr_nn.setBlobPath(blobconverter.from_zoo(name="vehicle-attributes-recognition-barrier-0039", shaves=SHAVES))
+    attr_nn.setBlobPath(blobconverter.from_zoo(name="vehicle-attributes-recognition-barrier-0039", shaves=SHAVES, output_dir=MODELS_DIR))
     attr_nn.input.setBlocking(False)
     attr_nn.input.setQueueSize(1)
 
@@ -177,9 +182,9 @@ def lic_thread(det_queue: dai.Node, rec_queue: dai.Node) -> None:
                 img = dai.ImgFrame()
                 img.setTimestamp(tstamp)
                 img.setType(dai.RawImgFrame.Type.BGR888p)
-                img.setData(to_planar(cropped_frame, (120, 32)))
-                img.setWidth(120)
-                img.setHeight(32)
+                img.setData(to_planar(cropped_frame, (94, 24)))
+                img.setWidth(94)
+                img.setHeight(24)
                 rec_queue.send(img)
 
             fps.tick("lic")
@@ -269,6 +274,8 @@ def attr_thread(q_attr, q_pass):
 
 print("Starting pipeline...")
 with dai.Device(create_pipeline()) as device:
+    print("press q to stop")
+
     if args.camera:
         cam_out = device.getOutputQueue("cam_out", 1, True)
     else:
@@ -328,12 +335,12 @@ with dai.Device(create_pipeline()) as device:
                 tstamp = time.monotonic()
 
                 lic_frame = dai.ImgFrame()
-                lic_frame.setData(to_planar(frame, (300, 300)))
+                lic_frame.setData(to_planar(frame, LP_NN_IMG_SIZE))
                 lic_frame.setTimestamp(tstamp)
                 lic_frame.setSequenceNum(frame_det_seq)
                 lic_frame.setType(dai.RawImgFrame.Type.BGR888p)
-                lic_frame.setWidth(300)
-                lic_frame.setHeight(300)
+                lic_frame.setWidth(LP_NN_IMG_SIZE[0])
+                lic_frame.setHeight(LP_NN_IMG_SIZE[1])
                 lp_in.send(lic_frame)
 
                 veh_frame = dai.ImgFrame()
@@ -343,9 +350,9 @@ with dai.Device(create_pipeline()) as device:
                 veh_frame.setType(dai.RawImgFrame.Type.BGR888p)
                 veh_frame.setWidth(300)
                 veh_frame.setHeight(300)
-                veh_frame.setData(to_planar(frame, (672, 384)))
-                veh_frame.setWidth(672)
-                veh_frame.setHeight(384)
+                veh_frame.setData(to_planar(frame, LP_NN_IMG_SIZE))
+                veh_frame.setWidth(LP_NN_IMG_SIZE[0])
+                veh_frame.setHeight(LP_NN_IMG_SIZE[1])
                 veh_in.send(veh_frame)
 
             if args.debug:

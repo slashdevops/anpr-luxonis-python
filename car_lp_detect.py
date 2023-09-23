@@ -11,11 +11,15 @@ from depthai_sdk.fps import FPSHandler
 
 from utils import frame_norm, send_frame_to_queue, to_depthai_frame
 
+MODELS_DIR = Path(__file__).parent.joinpath("models/DepthAI")
+
+DEFAULT_MODEL_LP_VENEZUELA = MODELS_DIR.joinpath("2022-09-17/frozen_inference_graph_openvino_2021.4_6shave.blob")
+
 parser = argparse.ArgumentParser()
 parser.add_argument("-d", "--debug", default=True, help="Debug mode")
 parser.add_argument("-cam", "--camera", action="store_true", help="Use DepthAI 4K RGB camera for inference (conflicts with -vid)")
 parser.add_argument("-vid", "--video", type=argparse.FileType("r", encoding="UTF-8"), help="Path to video file to be used for inference (conflicts with -cam)")
-parser.add_argument("-nn", "--nn-blob-model", type=argparse.FileType("r", encoding="UTF-8"), help="Set path of the blob (NN model)")
+parser.add_argument("-nn", "--nn-blob-model", type=argparse.FileType("r", encoding="UTF-8"), default=DEFAULT_MODEL_LP_VENEZUELA, help="Set path of the blob (NN model)")
 parser.add_argument("-nnt", "--nn-threshold", type=float, default=0.5, help="Neural Networks Confidence Thresholds")
 args = parser.parse_args()
 
@@ -39,7 +43,7 @@ if args.camera:
     cam.setPreviewSize(1024, 768)
     cam.setResolution(dai.ColorCameraProperties.SensorResolution.THE_1080_P)
     cam.setInterleaved(False)
-    cam.setBoardSocket(dai.CameraBoardSocket.RGB)
+    cam.setBoardSocket(dai.CameraBoardSocket.CAM_A)
 else:
     # create a XLinkIn to send the video frames from video file
     vid = pipeline.create(dai.node.XLinkIn)
@@ -50,14 +54,14 @@ else:
 
 # Vehicle detection NN
 veh_nn = pipeline.createMobileNetDetectionNetwork()
-veh_nn.setBlobPath(blobconverter.from_zoo(name="vehicle-detection-0200", shaves=SHAVES))
+veh_nn.setBlobPath(blobconverter.from_zoo(name="vehicle-detection-0200", shaves=SHAVES, output_dir=MODELS_DIR))
 veh_nn.setConfidenceThreshold(args.nn_threshold)
 veh_nn.setNumInferenceThreads(2)
 veh_nn.input.setQueueSize(1)
 
 # license plate detection NN
 lp_nn = pipeline.createMobileNetDetectionNetwork()
-lp_nn.setBlobPath(args.nn_blob_model.name)
+lp_nn.setBlobPath(args.nn_blob_model)
 lp_nn.setConfidenceThreshold(args.nn_threshold)
 lp_nn.setNumInferenceThreads(2)
 lp_nn.input.setQueueSize(1)

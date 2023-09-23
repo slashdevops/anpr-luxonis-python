@@ -10,11 +10,15 @@ import depthai as dai
 import numpy as np
 from depthai_sdk.fps import FPSHandler
 
+MODELS_DIR = Path(__file__).parent.joinpath("models/DepthAI")
+
+DEFAULT_MODEL_LP_VENEZUELA = MODELS_DIR.joinpath("2022-09-17/frozen_inference_graph_openvino_2021.4_6shave.blob")
+
 parser = argparse.ArgumentParser()
 parser.add_argument("-d", "--debug", default=True, help="Debug mode")
 parser.add_argument("-cam", "--camera", action="store_true", help="Use DepthAI 4K RGB camera for inference (conflicts with -vid)")
 parser.add_argument("-vid", "--video", type=argparse.FileType("r", encoding="UTF-8"), help="Path to video file to be used for inference (conflicts with -cam)")
-parser.add_argument("-nn", "--nn-blob-model", type=argparse.FileType("r", encoding="UTF-8"), help="Set path of the blob (NN model)")
+parser.add_argument("-nn", "--nn-blob-model", type=argparse.FileType("r", encoding="UTF-8"), default=DEFAULT_MODEL_LP_VENEZUELA, help="Set path of the blob (NN model)")
 parser.add_argument("-nnt", "--nn-threshold", type=float, default=0.5, help="Neural Network Confidence Thresholds")
 args = parser.parse_args()
 
@@ -24,7 +28,6 @@ if not args.camera and not args.video:
 NN_INPUT_IMG_WIDTH = 256
 NN_INPUT_IMG_HEIGHT = 256
 
-MODELS_DIR = Path(__file__).parent.joinpath("models")
 SHAVES = 6 if args.camera else 8
 
 pipeline = dai.Pipeline()
