@@ -4,22 +4,19 @@ ANPR using Luxonis camera
 
 ## Requirements
 
-Required
-
-+ Python 3.9
-+ opencv-python==4.6.0.66
-+ depthai==2.17.3.1
-+ blobconverter==1.3.0
-+ depthai-sdk==1.2.3
-
-Optionals
-
-+ openvino-dev==2021.4.582
+* depthai==2.22.0.0
+* opencv-python==4.8.0.76
+* depthai-pipeline-graph==0.0.5
+* depthai-sdk==1.13.1
+* openvino-dev==2023.1.0
 
 ### developer tools
 
-+ black
-+pylint
+* black
+* pylint
+* autoimport
+* isort
+
 
 ## Setup
 
@@ -44,18 +41,29 @@ install the dependencies
 pip install -r requirements.txt
 ```
 
+### Download models
+
+```bash
+pip install openvino-dev
+```
+
+```bash
+mkdir -p /Volumes/Projects/ANPR/project/openvino/{models,cache}
+omz_downloader --all --cache_dir /Volumes/Projects/ANPR/project/openvino/cache --output_dir /Volumes/Projects/ANPR/project/openvino/models
+```
+
 ## Run
 
 All detections
 
 ```bash
-anpr-luxonis-python git:(main) python3 main.py -nn ~/ai/custom_models/frozen_inference_graph_openvino_2021.4_6shave.blob -vid ~/Videos/1.mp4
+python3 main.py -nn ~/ai/custom_models/frozen_inference_graph_openvino_2021.4_6shave.blob -vid ~/Videos/1.mp4
 ```
 
 License plate detections
 
 ```bash
-anpr-luxonis-python git:(main) python3 main.py -nn ~/ai/custom_models/frozen_inference_graph_openvino_2021.4_6shave.blob -vid ~/Videos/1.mp4
+python3 main.py -nn ~/ai/custom_models/frozen_inference_graph_openvino_2021.4_6shave.blob -vid ~/Videos/1.mp4
 ```
 
 Car detections
@@ -64,7 +72,7 @@ Car detections
 python3 car_detect.py -vid ~/Videos/1.mp4
 ```
 
-## Pretrained models
+## Pre-trained models
 
 Luxonis zoo
 

@@ -7,7 +7,7 @@ from pathlib import Path
 import blobconverter
 import cv2
 import depthai as dai
-from depthai_sdk import FPSHandler
+from depthai_sdk.fps import FPSHandler
 
 from utils import frame_norm, send_frame_to_queue, to_depthai_frame
 
@@ -122,7 +122,6 @@ def should_run() -> bool:
 
 
 def veh_thread(detect_queue: dai.DataOutputQueue, out_queue: dai.DataInputQueue, frame_queue: list) -> None:
-
     while RUNNING:
         try:
             if len(frame_queue) == 0:

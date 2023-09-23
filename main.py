@@ -7,13 +7,13 @@ import blobconverter
 import cv2
 import depthai as dai
 import numpy as np
-from depthai_sdk import FPSHandler
+from depthai_sdk.fps import FPSHandler
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-d", "--debug", default=True, help="Debug mode")
 parser.add_argument("-cam", "--camera", action="store_true", help="Use DepthAI 4K RGB camera for inference (conflicts with -vid)")
 parser.add_argument("-vid", "--video", type=argparse.FileType("r", encoding="UTF-8"), help="Path to video file to be used for inference (conflicts with -cam)")
-parser.add_argument("-nn", "--nn-blob-model", type=argparse.FileType("r", encoding="UTF-8"), required=True, help="Set path of the blob (NN model)")
+# parser.add_argument("-nn", "--nn-blob-model", type=argparse.FileType("r", encoding="UTF-8"), required=True, help="Set path of the blob (NN model)")
 args = parser.parse_args()
 
 if not args.camera and not args.video:
@@ -414,4 +414,5 @@ with dai.Device(create_pipeline()) as device:
 
 print(f"FPS: {fps.fps():.2f}")
 if not args.camera:
+    cap.release()
     cap.release()
