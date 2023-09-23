@@ -18,6 +18,8 @@ parser.add_argument("-d", "--debug", default=True, help="Debug mode")
 parser.add_argument("-cam", "--camera", action="store_true", help="Use DepthAI 4K RGB camera for inference (conflicts with -vid)")
 parser.add_argument("-vid", "--video", type=argparse.FileType("r", encoding="UTF-8"), help="Path to video file to be used for inference (conflicts with -cam)")
 parser.add_argument("-nn", "--nn-blob-model", type=argparse.FileType("r", encoding="UTF-8"), default=DEFAULT_MODEL_LP_VENEZUELA, help="Set path of the blob (NN model)")
+parser.add_argument("-nnt", "--nn-threshold", type=float, default=0.5, help="Neural Networks Confidence Thresholds")
+
 args = parser.parse_args()
 
 if not args.camera and not args.video:
@@ -67,7 +69,7 @@ def create_pipeline():
     if args.camera:
         print("Creating Color Camera...")
         cam = pipeline.create(dai.node.ColorCamera)
-        cam.setPreviewSize(640, 640)
+        cam.setPreviewSize(LP_NN_IMG_SIZE)
         cam.setResolution(dai.ColorCameraProperties.SensorResolution.THE_1080_P)
         cam.setInterleaved(False)
         cam.setBoardSocket(dai.CameraBoardSocket.CAM_A)
@@ -78,7 +80,7 @@ def create_pipeline():
 
     # NeuralNetwork
     print("Creating License Plates Detection Neural Network...")
-    lp_nn = set_neural_network("lp_nn", pipeline, 0.6, args.nn_blob_model)
+    lp_nn = set_neural_network("lp_nn", pipeline, args.nn_threshold, args.nn_blob_model)
 
     if args.camera:
         manip = pipeline.create(dai.node.ImageManip)
@@ -344,12 +346,12 @@ with dai.Device(create_pipeline()) as device:
                 lp_in.send(lic_frame)
 
                 veh_frame = dai.ImgFrame()
-                veh_frame.setData(to_planar(frame, (300, 300)))
+                veh_frame.setData(to_planar(frame, LP_NN_IMG_SIZE))
                 veh_frame.setTimestamp(tstamp)
                 veh_frame.setSequenceNum(frame_det_seq)
                 veh_frame.setType(dai.RawImgFrame.Type.BGR888p)
-                veh_frame.setWidth(300)
-                veh_frame.setHeight(300)
+                veh_frame.setWidth(LP_NN_IMG_SIZE[0])
+                veh_frame.setHeight(LP_NN_IMG_SIZE[1])
                 veh_frame.setData(to_planar(frame, LP_NN_IMG_SIZE))
                 veh_frame.setWidth(LP_NN_IMG_SIZE[0])
                 veh_frame.setHeight(LP_NN_IMG_SIZE[1])
