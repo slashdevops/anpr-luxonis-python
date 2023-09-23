@@ -415,4 +415,3 @@ with dai.Device(create_pipeline()) as device:
 print(f"FPS: {fps.fps():.2f}")
 if not args.camera:
     cap.release()
-    cap.release()

@@ -24,6 +24,7 @@ if not args.camera and not args.video:
 NN_INPUT_IMG_WIDTH = 256
 NN_INPUT_IMG_HEIGHT = 256
 
+MODELS_DIR = Path(__file__).parent.joinpath("models")
 SHAVES = 6 if args.camera else 8
 
 pipeline = dai.Pipeline()
@@ -33,7 +34,7 @@ if args.camera:
     cam.setPreviewSize(1024, 768)
     cam.setResolution(dai.ColorCameraProperties.SensorResolution.THE_1080_P)
     cam.setInterleaved(False)
-    cam.setBoardSocket(dai.CameraBoardSocket.RGB)
+    cam.setBoardSocket(dai.CameraBoardSocket.CAM_A)
 else:
     # create a XLinkIn to send the video frames
     vid = pipeline.create(dai.node.XLinkIn)
@@ -42,7 +43,7 @@ else:
 
 # NN
 veh_nn = pipeline.createMobileNetDetectionNetwork()
-veh_nn.setBlobPath(blobconverter.from_zoo(name="vehicle-detection-0200", shaves=SHAVES))
+veh_nn.setBlobPath(blobconverter.from_zoo(name="vehicle-detection-0200", shaves=SHAVES, output_dir=MODELS_DIR))
 veh_nn.setConfidenceThreshold(args.nn_threshold)
 veh_nn.setNumInferenceThreads(2)
 veh_nn.input.setQueueSize(1)
@@ -125,6 +126,8 @@ with dai.Device(pipeline) as device:
     q_nn = device.getOutputQueue("detection", 1, False)
 
     detections = []
+
+    print("press q to stop")
 
     while should_run():
         ok, frame = get_frame()
