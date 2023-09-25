@@ -12,7 +12,7 @@ from depthai_sdk.fps import FPSHandler
 
 MODELS_DIR = Path(__file__).parent.joinpath("models/DepthAI")
 
-DEFAULT_MODEL_LP_VENEZUELA = MODELS_DIR.joinpath("2022-09-17/frozen_inference_graph_openvino_2021.4_6shave.blob")
+DEFAULT_MODEL_LP_VENEZUELA = MODELS_DIR.joinpath("2023-09-25/anpr-best-train15-yolos-2023-09-25-1.blob")
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-d", "--debug", default=True, help="Debug mode")
