@@ -1,6 +1,6 @@
 # oblicatory libraries
 depthai==2.22.0.0
-opencv-python==4.8.0.76
+opencv-python==4.8.1.78
 depthai-pipeline-graph==0.0.5
 depthai-sdk==1.13.1
 
